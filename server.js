@@ -35,7 +35,7 @@ app.post('/api/apply-internship', async (req, res) => {
 
         // Resend ke through email bhejein
         const data = await resend.emails.send({
-            from: "Internship Portal <onboarding@resend.dev>", // Verified domain aane par isko update karein
+            from: "Internship Portal <https://aaditya-backend.onrender.com>", // Verified domain aane par isko update karein
             to: ["tiwarihimanshumfka@gmail.com"], // Jis email par application receive karni hai
             subject: `New Internship Application from ${name}`,
             html: `
