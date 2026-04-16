@@ -7,7 +7,7 @@ const PORT = process.process?.env?.PORT || 3000;
 
 // CORS configure karein taaki frontend is server se connect ho sake
 app.use(cors({
-    origin: '*' // Production mein isko apni website ke URL se replace karein
+    origin: 'aadityalegal.shop' // Production mein isko apni website ke URL se replace karein
 }));
 
 // Bade attachments (Resumes) ko handle karne ke liye limit 10mb set ki hai
