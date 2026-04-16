@@ -1,74 +1,80 @@
-import express from 'express';
-import cors from 'cors';
-import { Resend } from 'resend';
+// require('dotenv').config(); // Local testing ke liye
+const express = require('express');
+const cors = require('cors');
+const { Resend } = require('resend');
 
 const app = express();
-const PORT = process.process?.env?.PORT || 3000;
+// Resend API key environment variable se aayegi
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// CORS configure karein taaki frontend is server se connect ho sake
+// CORS enable karna taaki frontend se request block na ho
 app.use(cors({
-    origin: 'aadityalegal.shop' // Production mein isko apni website ke URL se replace karein
+    origin: '*', // Production me ise apni actual domain (e.g., 'https://aadityalegal.shop') se replace kar dena
+    methods: ['GET', 'POST']
 }));
 
-// Bade attachments (Resumes) ko handle karne ke liye limit 10mb set ki hai
+// Body parser limits badhana zaroori hai kyunki PDF/DOCX files Base64 me badi ho jati hain (approx 10MB)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Apni Resend API key yahan daalein
-const resend = new Resend('re_ebxwaMTN_CMtV7kYsks13YDJ12zGaUm9z');
+// Test Route
+app.get('/', (req, res) => {
+    res.send('Aaditya Law Firm Backend is running successfully!');
+});
 
-// Internship form receive karne ke liye API Route
-app.post('/api/apply-internship', async (req, res) => {
-    const { name, email, phone, year, college, message, resumeBase64, resumeName } = req.body;
-
+// Internship Form Bhejne ka API Endpoint
+app.post('/api/apply', async (req, res) => {
     try {
-        console.log(`[INFO] Received internship application from: ${name}`);
+        const { name, email, phone, year, college, message, resumeBase64, resumeName } = req.body;
 
-        // Agar file hai toh attachment array prepare karein
-        const attachments = [];
+        // Validation - Check agar details missing hain
+        if (!name || !email || !phone) {
+            return res.status(400).json({ success: false, error: 'Name, Email aur Phone required hain.' });
+        }
+
+        // Attachment array prepare karna
+        let attachments = [];
         if (resumeBase64 && resumeName) {
             attachments.push({
                 filename: resumeName,
-                content: resumeBase64
+                content: resumeBase64, // Base64 string directly Resend me pass ki ja sakti hai
             });
         }
 
-        // Resend ke through email bhejein
+        // Email Send Karna Resend API ke through
         const data = await resend.emails.send({
-            from: "Internship Portal <https://aaditya-backend.onrender.com>", // Verified domain aane par isko update karein
-            to: ["tiwarihimanshumfka@gmail.com"], // Jis email par application receive karni hai
-            subject: `New Internship Application from ${name}`,
+            // NOTE: Agar aapne Resend par domain verify nahi kiya hai, toh 'onboarding@resend.dev' use karein.
+            // Domain verify karne ke baad ise 'info@aadityalegal.shop' jaisa kuch kar lein.
+            from: 'Aaditya Law Firm Internships <onboarding@resend.dev>', 
+            
+            // Jaha aapko email receive karni hai (Aapka email ID)
+            to: [process.env.RECEIVER_EMAIL], 
+            
+            subject: `New Internship Application - ${name}`,
             html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                    <h2 style="color: #f59e0b;">New Internship Application</h2>
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Name:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${name}</td></tr>
-                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Email:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${email}</td></tr>
-                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Phone:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${phone}</td></tr>
-                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Year of Study:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${year}</td></tr>
-                        <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>University:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${college}</td></tr>
-                    </table>
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-top: 4px solid #f59e0b;">
+                    <h2 style="color: #0f172a;">New Internship Application</h2>
+                    <p><strong>Name:</strong> ${name}</p>
+                    <p><strong>Email:</strong> ${email}</p>
+                    <p><strong>Phone:</strong> ${phone}</p>
+                    <p><strong>Year of Study:</strong> ${year}</p>
+                    <p><strong>College/University:</strong> ${college}</p>
+                    <p><strong>Cover Letter/Message:</strong><br/> ${message}</p>
                     <br/>
-                    <h3>Message / Cover Letter:</h3>
-                    <p style="background: #f9fafb; padding: 15px; border-left: 4px solid #f59e0b; white-space: pre-wrap;">${message}</p>
+                    <p style="font-size: 12px; color: #666;">Note: Resume is attached to this email.</p>
                 </div>
             `,
             attachments: attachments
         });
 
-        console.log(`[SUCCESS] Email sent via Resend. ID: ${data.id}`);
-        res.status(200).json({ success: true, message: "Application submitted successfully", data });
-        
+        res.status(200).json({ success: true, message: 'Application email sent successfully!', data });
     } catch (error) {
-        console.error("[ERROR] Failed to send email via Resend:", error);
+        console.error('Error sending email:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// Server start karein
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`=========================================`);
-    console.log(`🚀 Backend Server is running on port ${PORT}`);
-    console.log(`📡 Send POST requests to: http://localhost:${PORT}/api/apply-internship`);
-    console.log(`=========================================`);
+    console.log(`Server running smoothly on port ${PORT}`);
 });
