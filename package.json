@@ -1,9 +1,8 @@
 {
   "name": "aaditya-law-backend",
   "version": "1.0.0",
-  "description": "Backend server for Aaditya Law Group",
+  "description": "Backend for Aaditya Law Firm to handle Resend Emails",
   "main": "server.js",
-  "type": "module",
   "scripts": {
     "start": "node server.js"
   },
