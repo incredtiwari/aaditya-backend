@@ -48,7 +48,7 @@ app.post('/api/apply', async (req, res) => {
             from: 'Aaditya Law Firm Internships <onboarding@resend.dev>', 
             
             // Jaha aapko email receive karni hai (Aapka email ID)
-            to: [process.env.RECEIVER_EMAIL], 
+            to: [process.env.tiwarihimanshumfka@gmail.com], 
             
             subject: `New Internship Application - ${name}`,
             html: `
