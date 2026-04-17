@@ -5,7 +5,7 @@ const { Resend } = require('resend');
 
 const app = express();
 // Resend API key environment variable se aayegi
-const resend = new Resend(process.env.re_ebxwaMTN_CMtV7kYsks13YDJ12zGaUm9z);
+const resend = new Resend('re_ebxwaMTN_CMtV7kYsks13YDJ12zGaUm9z');
 
 // CORS enable karna taaki frontend se request block na ho
 app.use(cors({
