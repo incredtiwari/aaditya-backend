@@ -45,7 +45,7 @@ app.post('/api/apply', async (req, res) => {
         const data = await resend.emails.send({
             // NOTE: Agar aapne Resend par domain verify nahi kiya hai, toh 'onboarding@resend.dev' use karein.
             // Domain verify karne ke baad ise 'info@aadityalegal.shop' jaisa kuch kar lein.
-            from: 'Aaditya Law Firm Internships <aadityalegal.shop>', 
+            from: 'Aaditya Law Firm Internships <onboarding@resend.dev>', 
             
             // Jaha aapko email receive karni hai (Aapka email ID)
             to: ['tiwarihimanshumfka@gmail.com'], 
