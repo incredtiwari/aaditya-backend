@@ -9,7 +9,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 // CORS enable karna taaki frontend se request block na ho
 app.use(cors({
-    origin: '*', // Production me ise apni actual domain (e.g., 'https://aadityalegal.shop') se replace kar dena
+    origin: 'https://aadityalegal.shop', // Production me ise apni actual domain (e.g., 'https://aadityalegal.shop') se replace kar dena
     methods: ['GET', 'POST']
 }));
 
