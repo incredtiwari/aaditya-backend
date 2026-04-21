@@ -1,80 +1,101 @@
-// require('dotenv').config(); // Local testing ke liye
+// server.js
+require('dotenv').config();
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
-const { Resend } = require('resend');
 
 const app = express();
-// Resend API key environment variable se aayegi
-const resend = new Resend('re_ebxwaMTN_CMtV7kYsks13YDJ12zGaUm9z');
 
-// CORS enable karna taaki frontend se request block na ho
-app.use(cors({
-    origin: 'https://aadityalegal.shop', // Production me ise apni actual domain (e.g., 'https://aadityalegal.shop') se replace kar dena
-    methods: ['GET', 'POST']
-}));
+// Middleware
+// CORS allow karta hai aapke frontend ko is backend se baat karne ke liye
+app.use(cors());
 
-// Body parser limits badhana zaroori hai kyunki PDF/DOCX files Base64 me badi ho jati hain (approx 10MB)
-app.use(express.json({ limit: '10mb' }));
+// File size limit badhayi gayi hai taaki 3MB tak ki Base64 resume file bina error ke aa sake
+app.use(express.json({ limit: '10mb' })); 
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Test Route
+// 1. MONGODB SE CONNECTION
+const mongoURI = process.env.MONGO_URI;
+
+if (!mongoURI) {
+    console.error("❌ MONGO_URI environment variable is missing!");
+    process.exit(1);
+}
+
+mongoose.connect(mongoURI)
+  .then(() => console.log('✅ Successfully connected to MongoDB Atlas!'))
+  .catch((err) => console.error('❌ MongoDB connection error:', err));
+
+
+// 2. MONGOOSE SCHEMA & MODEL BANAO
+// Ye schema bilkul aapke frontend wale form payload se match karta hai
+const internshipSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  phone: { type: String, required: true },
+  year: { type: String, required: true },
+  college: { type: String, required: true },
+  message: { type: String, required: true },
+  resumeName: { type: String },
+  resumeBase64: { type: String }, 
+  appliedAt: { type: Date, default: Date.now }
+});
+
+// Database mein 'internships' naam ka collection banega
+const Internship = mongoose.model('Internship', internshipSchema);
+
+
+// 3. API ROUTES
+
+// (A) Ek simple health check route (Render par check karne ke liye ki server chal raha hai ya nahi)
 app.get('/', (req, res) => {
-    res.send('Aaditya Law Firm Backend is running successfully!');
+    res.send('Aaditya Law Group Backend is running perfectly! 🚀');
 });
 
-// Internship Form Bhejne ka API Endpoint
+// (B) Main Route jahan frontend se form ka data aayega
 app.post('/api/apply', async (req, res) => {
-    try {
-        const { name, email, phone, year, college, message, resumeBase64, resumeName } = req.body;
+  try {
+    const { name, email, phone, year, college, message, resumeBase64, resumeName } = req.body;
 
-        // Validation - Check agar details missing hain
-        if (!name || !email || !phone) {
-            return res.status(400).json({ success: false, error: 'Name, Email aur Phone required hain.' });
-        }
+    console.log(`📥 New application received from: ${name}`);
 
-        // Attachment array prepare karna
-        let attachments = [];
-        if (resumeBase64 && resumeName) {
-            attachments.push({
-                filename: resumeName,
-                content: resumeBase64, // Base64 string directly Resend me pass ki ja sakti hai
-            });
-        }
+    // Naya document banayein database ke liye
+    const newApplication = new Internship({
+      name,
+      email,
+      phone,
+      year,
+      college,
+      message,
+      resumeBase64,
+      resumeName
+    });
 
-        // Email Send Karna Resend API ke through
-        const data = await resend.emails.send({
-            // NOTE: Agar aapne Resend par domain verify nahi kiya hai, toh 'onboarding@resend.dev' use karein.
-            // Domain verify karne ke baad ise 'info@aadityalegal.shop' jaisa kuch kar lein.
-            from: 'Aaditya Law Firm Internships <onboarding@resend.dev>', 
-            
-            // Jaha aapko email receive karni hai (Aapka email ID)
-            to: ['tiwarihimanshumfka@gmail.com'], 
-            
-            subject: `New Internship Application - ${name}`,
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-top: 4px solid #f59e0b;">
-                    <h2 style="color: #0f172a;">New Internship Application</h2>
-                    <p><strong>Name:</strong> ${name}</p>
-                    <p><strong>Email:</strong> ${email}</p>
-                    <p><strong>Phone:</strong> ${phone}</p>
-                    <p><strong>Year of Study:</strong> ${year}</p>
-                    <p><strong>College/University:</strong> ${college}</p>
-                    <p><strong>Cover Letter/Message:</strong><br/> ${message}</p>
-                    <br/>
-                    <p style="font-size: 12px; color: #666;">Note: Resume is attached to this email.</p>
-                </div>
-            `,
-            attachments: attachments
-        });
+    // Database mein Save karein
+    await newApplication.save();
+    console.log(`✅ Application for ${name} successfully saved to MongoDB!`);
 
-        res.status(200).json({ success: true, message: 'Application email sent successfully!', data });
-    } catch (error) {
-        console.error('Error sending email:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
+    // Note: Agar aap contact form/internship form ki email configuration backend par shift karte hain,
+    // toh yahan nodemailer set karein aur primary professional email tiwarihimanshumfka@gmail.com use karein.
+
+    // Frontend ko success message bhejein
+    res.status(200).json({ 
+        success: true, 
+        message: 'Application submitted successfully to MongoDB!' 
+    });
+
+  } catch (error) {
+    console.error('❌ Error saving application:', error);
+    res.status(500).json({ 
+        success: false, 
+        error: 'Failed to process application on server.' 
+    });
+  }
 });
 
+// 4. SERVER START KAREIN
+// Render process.env.PORT automatically set karta hai
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server running smoothly on port ${PORT}`);
+  console.log(`🚀 Backend Server is running on port ${PORT}`);
 });
